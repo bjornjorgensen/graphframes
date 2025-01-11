@@ -138,24 +138,45 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   test("two components and two dangling vertices") {
     // disabling adaptive query execution helps assertComponents
     val enabled = spark.conf.getOption("spark.sql.adaptive.enabled")
+    val memoryFraction = spark.conf.getOption("spark.memory.fraction")
+    val storageFraction = spark.conf.getOption("spark.memory.storageFraction")
+    
     try {
+      // Configure Spark for test
       spark.conf.set("spark.sql.adaptive.enabled", value = false)
+      spark.conf.set("spark.memory.fraction", "0.7")
+      spark.conf.set("spark.memory.storageFraction", "0.3")
+      
       val vertices = spark.range(8L).toDF(ID)
       val edges = spark.createDataFrame(Seq(
         (0L, 1L), (1L, 2L), (2L, 0L),
         (3L, 4L), (4L, 5L), (5L, 3L)
       )).toDF(SRC, DST)
       val g = GraphFrame(vertices, edges)
-      val components = g.connectedComponents.run()
+      val components = g.connectedComponents
+        .setBroadcastThreshold(1)  // Use smaller threshold to reduce memory usage
+        .run()
       val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L), Set(6L), Set(7L))
       assertComponents(components, expected)
     } finally {
-      // restoring earlier conf
+      // Restore original configurations
       if (enabled.isDefined) {
-        spark.conf.set("spark.sql.adaptive.enabled", value = enabled.get)
+        spark.conf.set("spark.sql.adaptive.enabled", enabled.get)
       } else {
         spark.conf.unset("spark.sql.adaptive.enabled")
       }
+      if (memoryFraction.isDefined) {
+        spark.conf.set("spark.memory.fraction", memoryFraction.get)
+      } else {
+        spark.conf.unset("spark.memory.fraction")
+      }
+      if (storageFraction.isDefined) {
+        spark.conf.set("spark.memory.storageFraction", storageFraction.get)
+      } else {
+        spark.conf.unset("spark.memory.storageFraction")
+      }
+      // Force garbage collection after test
+      System.gc()
     }
   }
 
