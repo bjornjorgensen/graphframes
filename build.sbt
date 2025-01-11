@@ -89,3 +89,28 @@ releaseProcess := Seq[ReleaseStep](
 )
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials")
+
+// Add cross-version support
+crossScalaVersions := Seq("2.12.18", "2.13.8")
+
+// Update syntax for newer sbt
+ThisBuild / scalaVersion := scalaVer
+
+// Update test settings for newer sbt
+Test / fork := true
+Test / javaOptions ++= Seq(
+  "-Xmx2048m",
+  "-XX:ReservedCodeCacheSize=384m",
+  "-XX:MaxMetaspaceSize=384m",
+  "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+  "--add-opens=java.base/java.lang=ALL-UNNAMED"
+)
+
+// Update compiler options for newer sbt
+Compile / doc / scalacOptions ++= Seq(
+  "-groups",
+  "-implicits",
+  "-skip-packages", Seq("org.apache.spark").mkString(":")
+)
+
+Test / doc / scalacOptions ++= Seq("-groups", "-implicits")

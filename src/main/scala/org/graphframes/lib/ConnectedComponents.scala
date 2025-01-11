@@ -370,7 +370,6 @@ object ConnectedComponents extends Logging {
     // Add explicit garbage collection hints
     def cleanupIteration(): Unit = {
       System.gc()
-      spark.sparkContext.cleanupStageAttempt()
     }
 
     var lastRoundPersistedDFs = Seq[DataFrame](ee, minNbrs1)
