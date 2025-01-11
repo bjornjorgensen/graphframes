@@ -37,6 +37,14 @@ jobs:
         pip install -r ./python/requirements.txt
         pip install pyspark==${{ matrix.spark-version }}
     - name: Test
+      env:
+        SPARK_DRIVER_MEMORY: "4g"
+        SPARK_EXECUTOR_MEMORY: "4g"
+        PYSPARK_SUBMIT_ARGS: "--conf spark.sql.adaptive.enabled=false --conf spark.sql.shuffle.partitions=10 --conf spark.graphframes.component.cache.enabled=false pyspark-shell"
       run: |
         export SPARK_HOME=$(python -c "import os; from importlib.util import find_spec; print(os.path.join(os.path.dirname(find_spec('pyspark').origin)))")
+        # Create log4j.properties to reduce logging
+        echo "log4j.rootCategory=ERROR,console" > $SPARK_HOME/conf/log4j.properties
+        echo "log4j.appender.console=org.apache.log4j.ConsoleAppender" >> $SPARK_HOME/conf/log4j.properties
+        echo "log4j.appender.console.layout=org.apache.log4j.PatternLayout" >> $SPARK_HOME/conf/log4j.properties
         ./python/run-tests.sh
