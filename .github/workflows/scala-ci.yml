@@ -6,24 +6,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 3.5.4
+          - spark-version: 3.5.1
             scala-version: 2.13.8
-          - spark-version: 3.5.0
+          - spark-version: 3.5.1
             scala-version: 2.12.12
     runs-on: ubuntu-22.04
     env:
-      # JVM settings
-      JAVA_OPTS: -Xms4096M -Xmx4096M -Xss6M -XX:ReservedCodeCacheSize=512M -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -Dfile.encoding=UTF-8
-      JVM_OPTS:  -Xms4096M -Xmx4096M -Xss6M -XX:ReservedCodeCacheSize=512M -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -Dfile.encoding=UTF-8
-      SBT_OPTS: -Xms4096M -Xmx4096M -Xss6M -XX:ReservedCodeCacheSize=512M -XX:+CMSClassUnloadingEnabled
-      # Spark test configuration
-      SPARK_LOCAL_IP: 127.0.0.1
-      SPARK_DRIVER_MEMORY: 4g
-      SPARK_WORKER_MEMORY: 4g
-      SPARK_EXECUTOR_MEMORY: 4g
-      SPARK_EXECUTOR_CORES: 2
-      SPARK_WORKER_CORES: 2
-      SPARK_TESTING: 1
+      # fixing this error after tests success: sbt.ForkMain failed with exit code 134
+      # https://stackoverflow.com/questions/33287424/strange-exception-in-sbt-test
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -Dfile.encoding=UTF-8
+      JVM_OPTS:  -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -Dfile.encoding=UTF-8
     steps:
     - uses: actions/checkout@v4
     - uses: olafurpg/setup-scala@v13
@@ -35,16 +27,5 @@ jobs:
           ~/.ivy2/cache
         key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
     - name: Build and Test
-      run: |
-        build/sbt -v ++${{ matrix.scala-version }} \
-        -Dspark.version=${{ matrix.spark-version }} \
-        -Dspark.master=local[2] \
-        -Dspark.sql.adaptive.enabled=false \
-        -Dspark.sql.adaptive.coalescePartitions.enabled=false \
-        -Dspark.sql.adaptive.localShuffleReader.enabled=false \
-        -Dspark.sql.exchange.reuse=false \
-        -Dspark.sql.autoBroadcastJoinThreshold=-1 \
-        -Dspark.sql.analyzer.failAmbiguousSelfJoin=false \
-        -Dspark.sql.optimizer.runtimeOptimization=false \
-        coverage test coverageReport
+      run: build/sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} coverage test coverageReport
     - uses: codecov/codecov-action@v3
