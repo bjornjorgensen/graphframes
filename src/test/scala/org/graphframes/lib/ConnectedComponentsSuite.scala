@@ -208,9 +208,9 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       "spark.sql.shuffle.partitions" -> "2",
       "spark.sql.autoBroadcastJoinThreshold" -> "-1"  // Disable broadcast join
     )) {
-      // Create minimal test data
+      // Create minimal test data - using tuples for DataFrame creation
       val vertices = spark.createDataFrame(Seq(
-        (0L), (1L), (2L), (3L), (4L), (5L), (6L), (7L)
+        (0L,), (1L,), (2L,), (3L,), (4L,), (5L,), (6L,), (7L,)
       )).toDF(ID)
       val edges = spark.createDataFrame(Seq(
         (0L, 1L), (1L, 2L), (2L, 0L),
