@@ -32,6 +32,9 @@ import org.graphframes.GraphFrame._
 import org.graphframes.examples.Graphs
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
+  // Add session configuration
+  spark.conf.set("spark.sql.adaptive.enabled", false)
+  spark.conf.set("spark.sql.shuffle.partitions", 2) // Reduce shuffle partitions for test
 
   test("default params") {
     val g = Graphs.empty[Int]
@@ -136,30 +139,24 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("two components and two dangling vertices") {
-    // disabling adaptive query execution helps assertComponents
-    val enabled = spark.conf.getOption("spark.sql.adaptive.enabled")
+    val vertices = spark.range(8L).toDF(ID).cache() // Cache small dataset
+    val edges = spark.createDataFrame(Seq(
+      (0L, 1L), (1L, 2L), (2L, 0L),
+      (3L, 4L), (4L, 5L), (5L, 3L)
+    )).toDF(SRC, DST).cache() // Cache small dataset
+    
     try {
-      spark.conf.set("spark.sql.adaptive.enabled", value = false)
-      val vertices = spark.range(8L).toDF(ID)
-      val edges = spark.createDataFrame(Seq(
-        (0L, 1L), (1L, 2L), (2L, 0L),
-        (3L, 4L), (4L, 5L), (5L, 3L)
-      )).toDF(SRC, DST)
       val g = GraphFrame(vertices, edges)
       val components = g.connectedComponents
         .setBroadcastThreshold(1)  // Use smaller threshold to reduce memory usage
+        .setCheckpointInterval(0)  // Disable checkpointing for this small test
         .run()
       val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L), Set(6L), Set(7L))
       assertComponents(components, expected)
     } finally {
-      // restoring earlier conf
-      if (enabled.isDefined) {
-        spark.conf.set("spark.sql.adaptive.enabled", enabled.get)
-      } else {
-        spark.conf.unset("spark.sql.adaptive.enabled")
-      }
-      // Force garbage collection after test
-      System.gc()
+      vertices.unpersist()
+      edges.unpersist()
+      System.gc() // Force garbage collection after test
     }
   }
 
