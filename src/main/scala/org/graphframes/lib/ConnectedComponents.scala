@@ -43,7 +43,8 @@ class ConnectedComponents private[graphframes] (
 
   import org.graphframes.lib.ConnectedComponents._
 
-  private var broadcastThreshold: Int = 1000000
+  // Increase default threshold for better memory management
+  private var broadcastThreshold: Int = 100000
 
   /**
    * Sets broadcast threshold in propagating component assignments (default: 1000000).
@@ -240,7 +241,7 @@ object ConnectedComponents extends Logging {
 
   /**
    * Performs a possibly skewed join between edges and current component assignments.
-   * The skew join is done by broadcast join for frequent keys and normal join for the rest.
+   * The skewed join is done by broadcast join for frequent keys and normal join for the rest.
    */
   private def skewedJoin(
       edges: DataFrame,
@@ -248,12 +249,31 @@ object ConnectedComponents extends Logging {
       broadcastThreshold: Int,
       logPrefix: String): DataFrame = {
     import edges.sparkSession.implicits._
+    
+    // Add explicit cache to improve performance
+    edges.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    minNbrs.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    
     val hubs = minNbrs.filter(col(CNT) > broadcastThreshold)
       .select(SRC)
       .as[Long]
       .collect()
       .toSet
-    GraphFrame.skewedJoin(edges, minNbrs, SRC, hubs, logPrefix)
+
+    // Add adaptive threshold adjustment
+    val adjustedThreshold = if (hubs.size > 1000) {
+      logInfo(s"$logPrefix Adjusting broadcast threshold due to large number of hubs")
+      broadcastThreshold * 2
+    } else {
+      broadcastThreshold
+    }
+
+    val result = GraphFrame.skewedJoin(edges, minNbrs, SRC, hubs, logPrefix)
+    
+    edges.unpersist()
+    minNbrs.unpersist()
+    
+    result
   }
 
   /**
@@ -311,6 +331,14 @@ object ConnectedComponents extends Logging {
     val numEdges = ee.count()
     logInfo(s"$logPrefix Found $numEdges edges after preparation.")
 
+    // Add memory optimization for large graphs
+    if (numEdges > 1000000) {
+      logInfo(s"$logPrefix Large graph detected, optimizing storage level")
+      ee = ee.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    } else {
+      ee = ee.persist(intermediateStorageLevel)
+    }
+
     var converged = false
     var iteration = 1
 
@@ -339,6 +367,12 @@ object ConnectedComponents extends Logging {
 
     var prevSum: BigDecimal = _calcMinNbrSum(minNbrs1)
 
+    // Add explicit garbage collection hints
+    def cleanupIteration(): Unit = {
+      System.gc()
+      spark.sparkContext.cleanupStageAttempt()
+    }
+
     var lastRoundPersistedDFs = Seq[DataFrame](ee, minNbrs1)
     while (!converged) {
       var currRoundPersistedDFs = Seq[DataFrame]()
@@ -364,8 +398,8 @@ object ConnectedComponents extends Logging {
       ee = ee.union(minNbrs2.select(col(MIN_NBR).as(SRC), col(SRC).as(DST))) // src < dst
         .distinct()
 
-      // checkpointing
-      if (shouldCheckpoint && (iteration % checkpointInterval == 0)) {
+      // Add more frequent checkpointing for large graphs
+      if (shouldCheckpoint && ((iteration % checkpointInterval == 0) || numEdges > 1000000)) {
         // TODO: remove this after DataFrame.checkpoint is implemented
         val out = s"${checkpointDir.get}/$iteration"
         ee.write.parquet(out)
@@ -379,6 +413,7 @@ object ConnectedComponents extends Logging {
         }
 
         System.gc() // hint Spark to clean shuffle directories
+        cleanupIteration()
       }
 
       ee.persist(intermediateStorageLevel)
