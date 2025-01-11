@@ -33,11 +33,52 @@ import org.graphframes.examples.Graphs
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    // Configure Spark session after it's initialized
-    spark.conf.set("spark.sql.adaptive.enabled", false)
-    spark.conf.set("spark.sql.shuffle.partitions", 2)
+  private def withDisabledAQE(f: => Unit): Unit = {
+    val enabled = spark.conf.getOption("spark.sql.adaptive.enabled")
+    try {
+      spark.conf.set("spark.sql.adaptive.enabled", value = false)
+      f
+    } finally {
+      // restore earlier conf
+      if (enabled.isDefined) {
+        spark.conf.set("spark.sql.adaptive.enabled", enabled.get)
+      } else {
+        spark.conf.unset("spark.sql.adaptive.enabled")
+      }
+    }
+  }
+
+  private def withSparkConf(conf: Map[String, String])(f: => Unit): Unit = {
+    val spark = this.spark
+    val originalConf = conf.keys.flatMap(k => 
+      try {
+        Some(k -> spark.conf.get(k))
+      } catch {
+        case _: Exception => None
+      }
+    ).toMap
+
+    try {
+      conf.foreach { case (k, v) => 
+        try {
+          spark.conf.set(k, v)
+        } catch {
+          case _: Exception => 
+            logInfo(s"Could not set configuration $k=$v")
+        }
+      }
+      f
+    } finally {
+      // Restore original configuration for modifiable settings only
+      originalConf.foreach { case (k, v) =>
+        try {
+          spark.conf.set(k, v)
+        } catch {
+          case _: Exception =>
+            // Ignore errors when restoring configs
+        }
+      }
+    }
   }
 
   test("default params") {
@@ -143,24 +184,29 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("two components and two dangling vertices") {
-    val vertices = spark.range(8L).toDF(ID).cache() // Cache small dataset
-    val edges = spark.createDataFrame(Seq(
-      (0L, 1L), (1L, 2L), (2L, 0L),
-      (3L, 4L), (4L, 5L), (5L, 3L)
-    )).toDF(SRC, DST).cache() // Cache small dataset
-    
-    try {
-      val g = GraphFrame(vertices, edges)
-      val components = g.connectedComponents
-        .setBroadcastThreshold(1)  // Use smaller threshold to reduce memory usage
-        .setCheckpointInterval(0)  // Disable checkpointing for this small test
-        .run()
-      val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L), Set(6L), Set(7L))
-      assertComponents(components, expected)
-    } finally {
-      vertices.unpersist()
-      edges.unpersist()
-      System.gc() // Force garbage collection after test
+    withSparkConf(Map(
+      "spark.sql.adaptive.enabled" -> "false",
+      "spark.sql.shuffle.partitions" -> "2"
+    )) {
+      val vertices = spark.range(8L).toDF(ID).cache()
+      val edges = spark.createDataFrame(Seq(
+        (0L, 1L), (1L, 2L), (2L, 0L),
+        (3L, 4L), (4L, 5L), (5L, 3L)
+      )).toDF(SRC, DST).cache()
+      
+      try {
+        val g = GraphFrame(vertices, edges)
+        val components = g.connectedComponents
+          .setBroadcastThreshold(1)
+          .setCheckpointInterval(0)
+          .run()
+        val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L), Set(6L), Set(7L))
+        assertComponents(components, expected)
+      } finally {
+        vertices.unpersist()
+        edges.unpersist()
+        System.gc()
+      }
     }
   }
 
@@ -232,11 +278,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("intermediate storage level") {
-    // disabling adaptive query execution helps assertComponents
-    val enabled = spark.conf.getOption("spark.sql.adaptive.enabled")
-    try {
-      spark.conf.set("spark.sql.adaptive.enabled", value = false)
-
+    withDisabledAQE {
       val friends = Graphs.friends
       val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
 
@@ -244,18 +286,10 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       assert(cc.getIntermediateStorageLevel === StorageLevel.MEMORY_AND_DISK)
 
       for (storageLevel <- Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_ONLY, StorageLevel.NONE)) {
-        // TODO: it is not trivial to confirm the actual storage level used
         val components = cc
           .setIntermediateStorageLevel(storageLevel)
           .run()
         assertComponents(components, expected)
-      }
-    } finally {
-      // restoring earlier conf
-      if (enabled.isDefined) {
-        spark.conf.set("spark.sql.adaptive.enabled", value = enabled.get)
-      } else {
-        spark.conf.unset("spark.sql.adaptive.enabled")
       }
     }
   }
