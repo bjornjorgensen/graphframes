@@ -32,9 +32,13 @@ import org.graphframes.GraphFrame._
 import org.graphframes.examples.Graphs
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
-  // Add session configuration
-  spark.conf.set("spark.sql.adaptive.enabled", false)
-  spark.conf.set("spark.sql.shuffle.partitions", 2) // Reduce shuffle partitions for test
+  
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    // Configure Spark session after it's initialized
+    spark.conf.set("spark.sql.adaptive.enabled", false)
+    spark.conf.set("spark.sql.shuffle.partitions", 2)
+  }
 
   test("default params") {
     val g = Graphs.empty[Int]
