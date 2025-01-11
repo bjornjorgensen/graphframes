@@ -136,15 +136,27 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("two components and two dangling vertices") {
-    val vertices = spark.range(8L).toDF(ID)
-    val edges = spark.createDataFrame(Seq(
-      (0L, 1L), (1L, 2L), (2L, 0L),
-      (3L, 4L), (4L, 5L), (5L, 3L)
-    )).toDF(SRC, DST)
-    val g = GraphFrame(vertices, edges)
-    val components = g.connectedComponents.run()
-    val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L), Set(6L), Set(7L))
-    assertComponents(components, expected)
+    // disabling adaptive query execution helps assertComponents
+    val enabled = spark.conf.getOption("spark.sql.adaptive.enabled")
+    try {
+      spark.conf.set("spark.sql.adaptive.enabled", value = false)
+      val vertices = spark.range(8L).toDF(ID)
+      val edges = spark.createDataFrame(Seq(
+        (0L, 1L), (1L, 2L), (2L, 0L),
+        (3L, 4L), (4L, 5L), (5L, 3L)
+      )).toDF(SRC, DST)
+      val g = GraphFrame(vertices, edges)
+      val components = g.connectedComponents.run()
+      val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L), Set(6L), Set(7L))
+      assertComponents(components, expected)
+    } finally {
+      // restoring earlier conf
+      if (enabled.isDefined) {
+        spark.conf.set("spark.sql.adaptive.enabled", value = enabled.get)
+      } else {
+        spark.conf.unset("spark.sql.adaptive.enabled")
+      }
+    }
   }
 
   test("friends graph") {
