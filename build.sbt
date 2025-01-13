@@ -68,7 +68,21 @@ Test / fork := true
 parallelExecution := false
 
 // Java settings
-javacOptions ++= Seq("-source", "11", "-target", "11")
+javacOptions ++= {
+  val majorVersion = System.getProperty("java.version").split("\\.")(0).toInt
+  if (majorVersion >= 17) {
+    Seq(
+      "-source", "17",
+      "-target", "17",
+      "--release", "17"
+    )
+  } else {
+    Seq(
+      "-source", "11",
+      "-target", "11"
+    )
+  }
+}
 
 // Add Java module flags based on version
 ThisBuild / javaOptions ++= {
