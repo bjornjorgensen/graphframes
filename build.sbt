@@ -62,6 +62,12 @@ scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
 // This fixes a class loader problem with scala.Tuple2 class, scala-2.11, Spark 2.x
 fork in Test := true
 
+// Java 11 specific options
+javacOptions ++= Seq(
+  "-source", "11",
+  "-target", "11"
+)
+
 // This and the next line fix a problem with forked run: https://github.com/scalatest/scalatest/issues/770
 javaOptions in Test ++= Seq(
   "-Xmx2048m",

@@ -116,8 +116,14 @@ get_mem_opts () {
   (( $perm > 256 )) || perm=256
   (( $perm < 4096 )) || perm=4096
   local codecache=$(( $perm / 2 ))
-
-  echo "-Xms${mem}m -Xmx${mem}m -XX:MaxMetaspaceSize=${perm}m -XX:ReservedCodeCacheSize=${codecache}m"
+  
+  # Check if Java version is 11 or higher
+  local java_version=$("$java_cmd" -version 2>&1 | awk -F '"' '/version/ {print $2}')
+  if [[ "$java_version" > "11" ]] || [[ "$java_version" == "11"* ]]; then
+    echo "-Xms${mem}m -Xmx${mem}m -XX:MaxMetaspaceSize=${perm}m -XX:ReservedCodeCacheSize=${codecache}m"
+  else
+    echo "-Xms${mem}m -Xmx${mem}m -XX:MaxPermSize=${perm}m -XX:ReservedCodeCacheSize=${codecache}m"
+  fi
 }
 
 require_arg () {
