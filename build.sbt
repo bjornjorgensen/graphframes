@@ -68,18 +68,26 @@ javacOptions ++= Seq(
   "-target", "11"
 )
 
-// This and the next line fix a problem with forked run: https://github.com/scalatest/scalatest/issues/770
-javaOptions in Test ++= Seq(
-  "-Xmx2048m",
-  "-XX:ReservedCodeCacheSize=384m",
-  "-XX:MaxMetaspaceSize=384m",
-  "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
-  "--add-opens=java.base/java.lang=ALL-UNNAMED",
-  "--add-opens=java.base/java.nio=ALL-UNNAMED",
-  "--add-opens=java.base/java.util=ALL-UNNAMED",
-  "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
-  "--add-opens=java.base/java.math=ALL-UNNAMED"
-)
+// Conditionally add Java module flags based on Java version
+javaOptions in Test ++= {
+  val default = Seq(
+    "-Xmx2048m",
+    "-XX:ReservedCodeCacheSize=384m",
+    "-XX:MaxMetaspaceSize=384m"
+  )
+  
+  // Add module flags only for Java 9+
+  if (sys.props("java.specification.version").toDouble >= 9) {
+    default ++ Seq(
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+      "--add-opens=java.base/java.math=ALL-UNNAMED"
+    )
+  } else default
+}
 
 concurrentRestrictions in Global := Seq(
   Tags.limitAll(1))
