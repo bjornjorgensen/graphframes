@@ -21,6 +21,7 @@ ThisBuild / version := {
   s"$baseVersion-spark$sparkBranch"
 }
 ThisBuild / scalaVersion := scalaVer
+ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.8")
 ThisBuild / isSnapshot := (ThisBuild / version).value.contains("SNAPSHOT")
 
 // Project info
