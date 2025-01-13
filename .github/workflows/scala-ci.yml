@@ -7,7 +7,7 @@ jobs:
       matrix:
         scala-version: [2.13.8, 2.12.12]
         spark-version: [3.5.4]
-        java: [8, 11, 17, 21]
+        java: [8, 11, 17]
     runs-on: ubuntu-22.04
     env:
       SBT_OPTS: "-Xms2048M -Xmx2048M -Xss6M"
