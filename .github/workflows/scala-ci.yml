@@ -5,13 +5,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - spark-version: 3.5.4
-            scala-version: 2.13.8
-            java-version: 11
-          - spark-version: 3.5.4
-            scala-version: 2.12.12
-            java-version: 11
+        scala-version: [2.13.8, 2.12.12]
+        spark-version: [3.5.4]
+        java: [8, 11, 17, 21]
     runs-on: ubuntu-22.04
     env:
       # fixing this error after tests success: sbt.ForkMain failed with exit code 134
@@ -20,14 +16,11 @@ jobs:
       JVM_OPTS:  -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -Dfile.encoding=UTF-8
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/setup-java@v3
+    - uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: ${{ matrix.java-version }}
+        java-version: ${{ matrix.java }}
         cache: 'sbt'
-    - uses: olafurpg/setup-scala@v13
-      with:
-        java-version: "openjdk@1.11"
     - uses: actions/cache@v4
       with:
         path: |
