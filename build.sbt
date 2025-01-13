@@ -89,6 +89,31 @@ javaOptions in Test ++= {
   } else default
 }
 
+// Add settings for modern Java versions
+Global / excludeLintKeys += run / fork
+Global / excludeLintKeys += run / javaOptions
+
+// Add Java options depending on version
+ThisBuild / javaOptions ++= {
+  val majorVersion = System.getProperty("java.version").split("\\.")(0).toInt
+  if (majorVersion >= 17) {
+    // Settings for Java 17+
+    Seq(
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+      "--add-opens=java.base/java.math=ALL-UNNAMED",
+      "-Djdk.io.File.enableADS=true"
+    )
+  } else Seq.empty
+}
+
+// Update memory settings for modern JVMs
+ThisBuild / fork := true
+ThisBuild / Test / fork := true
+
 concurrentRestrictions in Global := Seq(
   Tags.limitAll(1))
 
