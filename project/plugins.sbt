@@ -1,10 +1,3 @@
-// You may use this file to add plugin dependencies for sbt.
-resolvers += "Spark Packages repo" at "https://repos.spark-packages.org/"
-
-addSbtPlugin("org.spark-packages" %% "sbt-spark-package" % "0.2.6")
-
-// scalacOptions in (Compile,doc) := Seq("-groups", "-implicits")
-
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.6.1")
-
-addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.13")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.1.5")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.9")
+addSbtPlugin("com.github.sbt" % "sbt-release" % "1.4.0")

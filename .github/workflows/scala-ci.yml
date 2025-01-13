@@ -22,6 +22,8 @@ jobs:
         cache: 'sbt'
     - name: Set Java Options
       run: |
+        # First clean any existing sbt boot directory to avoid version conflicts
+        rm -rf ~/.sbt/boot/
         JAVA_MAJOR_VERSION=$($JAVA_HOME/bin/java -version 2>&1 | head -n 1 | cut -d'"' -f2 | cut -d'.' -f1)
         if [ "$JAVA_MAJOR_VERSION" -ge "9" ]; then
           echo "JAVA_OPTS=-Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.math=ALL-UNNAMED -Dfile.encoding=UTF-8" >> $GITHUB_ENV

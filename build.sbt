@@ -16,25 +16,48 @@ val defaultScalaTestVer = scalaVer match {
 
 sparkVersion := sparkVer
 
-scalaVersion := scalaVer
+ThisBuild / scalaVersion := scalaVer
 
 name := "graphframes"
 
-spName := "graphframes/graphframes"
-
 organization := "org.graphframes"
 
-version := (version in ThisBuild).value + s"-spark$sparkBranch"
+ThisBuild / version := (ThisBuild / version).value + s"-spark$sparkBranch"
 
-isSnapshot := version.value.contains("SNAPSHOT")
+ThisBuild / isSnapshot := (ThisBuild / version).value.contains("SNAPSHOT")
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
 
-spAppendScalaVersion := true
+// Remove these lines
+// spName := "graphframes/graphframes"
+// spAppendScalaVersion := true
+// sparkComponents ++= Seq("graphx", "sql", "mllib")
 
-// Add Spark components this package depends on, e.g, "mllib", ....
-sparkComponents ++= Seq("graphx", "sql", "mllib")
+// Add assembly settings
+assembly / assemblyMergeStrategy := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x if x.endsWith("module-info.class") => MergeStrategy.discard
+  case x =>
+    val oldStrategy = (assembly / assemblyMergeStrategy).value
+    oldStrategy(x)
+}
+
+// Add Spark dependencies explicitly
+libraryDependencies ++= Seq(
+  "org.apache.spark" %% "spark-graphx" % sparkVer % "provided",
+  "org.apache.spark" %% "spark-sql" % sparkVer % "provided",
+  "org.apache.spark" %% "spark-mllib" % sparkVer % "provided"
+)
+
+// Exclude Spark from the assembly jar
+assembly / assemblyExcludedJars := {
+  val cp = (assembly / fullClasspath).value
+  cp filter {_.data.getName.startsWith("spark-")}
+}
+
+// Name the assembly jar consistently
+assembly / assemblyJarName := s"${name.value}-assembly_${scalaVersion.value}-${version.value}.jar"
 
 // uncomment and change the value below to change the directory where your zip artifact will be created
 // spDistDirectory := target.value
@@ -52,15 +75,15 @@ parallelExecution := false
 
 scalacOptions ++= Seq("-deprecation", "-feature")
 
-scalacOptions in (Compile, doc) ++= Seq(
+Compile / doc / scalacOptions ++= Seq(
   "-groups",
   "-implicits",
   "-skip-packages", Seq("org.apache.spark").mkString(":"))
 
-scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
+Test / doc / scalacOptions ++= Seq("-groups", "-implicits")
 
 // This fixes a class loader problem with scala.Tuple2 class, scala-2.11, Spark 2.x
-fork in Test := true
+Test / fork := true
 
 // Java 11 specific options
 javacOptions ++= Seq(
