@@ -15,11 +15,8 @@
 # limitations under the License.
 #
 
-import sys
 from typing import Any, Union, Optional
 
-if sys.version > '3':
-    basestring = str
 
 from graphframes.lib import Pregel
 from pyspark import SparkContext
@@ -64,8 +61,8 @@ class GraphFrame:
     def __init__(self, v: DataFrame, e: DataFrame) -> None:
         self._vertices = v
         self._edges = e
-        self._spark = SparkSession.getActiveSession()
-        self._sc = self._spark._sc
+        self._spark = SparkSession.builder.getOrCreate()
+        self._sc = self._spark.sparkContext
         self._jvm_gf_api = _java_api(self._sc)
 
         self.ID = self._jvm_gf_api.ID()
@@ -216,8 +213,7 @@ class GraphFrame:
         :param condition: String or Column describing the condition expression for filtering.
         :return: GraphFrame with filtered vertices and edges. 
         """
-
-        if isinstance(condition, basestring):
+        if isinstance(condition, str):
             jdf = self._jvm_graph.filterVertices(condition)
         elif isinstance(condition, Column):
             jdf = self._jvm_graph.filterVertices(condition._jc)
@@ -232,7 +228,7 @@ class GraphFrame:
         :param condition: String or Column describing the condition expression for filtering.
         :return: GraphFrame with filtered edges. 
         """
-        if isinstance(condition, basestring):
+        if isinstance(condition, str):
             jdf = self._jvm_graph.filterEdges(condition)
         elif isinstance(condition, Column):
             jdf = self._jvm_graph.filterEdges(condition._jc)
@@ -295,14 +291,14 @@ class GraphFrame:
         if sendToSrc is not None:
             if isinstance(sendToSrc, Column):
                 builder.sendToSrc(sendToSrc._jc)
-            elif isinstance(sendToSrc, basestring):
+            elif isinstance(sendToSrc, str):
                 builder.sendToSrc(sendToSrc)
             else:
                 raise TypeError("Provide message either as `Column` or `str`")
         if sendToDst is not None:
             if isinstance(sendToDst, Column):
                 builder.sendToDst(sendToDst._jc)
-            elif isinstance(sendToDst, basestring):
+            elif isinstance(sendToDst, str):
                 builder.sendToDst(sendToDst)
             else:
                 raise TypeError("Provide message either as `Column` or `str`")
@@ -395,7 +391,7 @@ class GraphFrame:
         """
         assert sourceIds is not None and len(sourceIds) > 0, "Source vertices Ids sourceIds must be provided"
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
-        sourceIds = self._sc._jvm.PythonUtils.toArray(sourceIds)
+        sourceIds = self._sc._jvm.PythonUtils.toSeq(sourceIds)
         builder = self._jvm_graph.parallelPersonalizedPageRank()
         builder = builder.resetProbability(resetProbability)
         builder = builder.sourceIds(sourceIds)
@@ -459,15 +455,20 @@ class GraphFrame:
         return DataFrame(jdf, self._spark)
 
 
-def _test():
+def _test() -> None:
     import doctest
     import graphframe
     globs = graphframe.__dict__.copy()
-    globs['sc'] = SparkContext('local[4]', 'PythonTest', batchSize=2)
-    globs['spark'] = SparkSession(globs['sc']).builder.getOrCreate()
+    spark = SparkSession.builder \
+        .master('local[4]') \
+        .appName('PythonTest') \
+        .config('spark.sql.execution.arrow.pyspark.enabled', 'true') \
+        .getOrCreate()
+    globs['spark'] = spark
+    globs['sc'] = spark.sparkContext
     (failure_count, test_count) = doctest.testmod(
         globs=globs, optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE)
-    globs['sc'].stop()
+    spark.stop()
     if failure_count:
         exit(-1)
 

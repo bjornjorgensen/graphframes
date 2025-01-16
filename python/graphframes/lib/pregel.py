@@ -15,18 +15,15 @@
 # limitations under the License.
 #
 
-import sys
-from typing import Any
-if sys.version > '3':
-    basestring = str
-
+from typing import Any, Union
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.types import Column
 from pyspark.sql.functions import col
 from pyspark.ml.wrapper import JavaWrapper
 
 
 class Pregel(JavaWrapper):
-    r"""
+    """
     Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
 
     See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_
@@ -171,10 +168,10 @@ class Pregel(JavaWrapper):
 
         :return: the result vertex DataFrame from the final iteration including both original and additional columns.
         """
-        return DataFrame(self._java_obj.run(), SparkSession.getActiveSession())
+        return DataFrame(self._java_obj.run(), SparkSession.active)
 
     @staticmethod
-    def msg() -> Any:
+    def msg() -> Column:
         """
         References the message column in aggregating messages and updating additional vertex columns.
 
@@ -182,8 +179,8 @@ class Pregel(JavaWrapper):
         """
         return col("_pregel_msg_")
 
-    @staticmethod
-    def src(colName: str) -> Any:
+    @staticmethod 
+    def src(colName: str) -> Column:
         """
         References a source vertex column in generating messages to send.
 
@@ -191,10 +188,10 @@ class Pregel(JavaWrapper):
 
         :param colName: the vertex column name.
         """
-        return col("src." + colName)
+        return col(f"src.{colName}")
 
     @staticmethod
-    def dst(colName: str) -> Any:
+    def dst(colName: str) -> Column:
         """
         References a destination vertex column in generating messages to send.
 
@@ -202,10 +199,10 @@ class Pregel(JavaWrapper):
 
         :param colName: the vertex column name.
         """
-        return col("dst." + colName)
+        return col(f"dst.{colName}")
 
     @staticmethod
-    def edge(colName: str) -> Any:
+    def edge(colName: str) -> Column:
         """
         References an edge column in generating messages to send.
 
@@ -213,4 +210,4 @@ class Pregel(JavaWrapper):
 
         :param colName: the edge column name.
         """
-        return col("edge." + colName)
+        return col(f"edge.{colName}")
