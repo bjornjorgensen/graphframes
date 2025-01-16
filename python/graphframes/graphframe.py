@@ -391,10 +391,15 @@ class GraphFrame:
         """
         assert sourceIds is not None and len(sourceIds) > 0, "Source vertices Ids sourceIds must be provided"
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
-        sourceIds = self._sc._jvm.PythonUtils.toSeq(sourceIds)
+        
+        # Convert Python list to Java ArrayList
+        java_array_list = self._sc._gateway.jvm.java.util.ArrayList()
+        for item in sourceIds:
+            java_array_list.add(item)
+            
         builder = self._jvm_graph.parallelPersonalizedPageRank()
         builder = builder.resetProbability(resetProbability)
-        builder = builder.sourceIds(sourceIds)
+        builder = builder.sourceIds(java_array_list)
         builder = builder.maxIter(maxIter)
         jgf = builder.run()
         return _from_java_gf(jgf, self._spark)

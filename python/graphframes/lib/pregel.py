@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-from typing import Any, Union
+from typing import Any, Union, Optional
 from pyspark.sql import DataFrame, SparkSession, Column
 from pyspark.sql.functions import col
 from pyspark.ml.wrapper import JavaWrapper
@@ -167,7 +167,10 @@ class Pregel(JavaWrapper):
 
         :return: the result vertex DataFrame from the final iteration including both original and additional columns.
         """
-        return DataFrame(self._java_obj.run(), SparkSession.active)
+        spark = SparkSession.getActiveSession()
+        if spark is None:
+            raise RuntimeError("No active SparkSession found")
+        return DataFrame(self._java_obj.run(), spark)
 
     @staticmethod
     def msg() -> Column:
