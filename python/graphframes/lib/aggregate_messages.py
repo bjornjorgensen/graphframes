@@ -32,22 +32,48 @@ class AggregateMessages:
     """Collection of utilities usable with :meth:`graphframes.GraphFrame.aggregateMessages()`."""
 
     @classmethod
-    def src(cls) -> Column:
-        """Reference for source column, used for specifying messages."""
-        jvm_gf_api, _ = _get_java_api()
-        return sqlfunctions.col(jvm_gf_api.SRC())
+    def __getitem__(cls, key: str) -> Column:
+        """Allow dictionary-style access to columns."""
+        return cls.src()(key)
 
     @classmethod
-    def dst(cls) -> Column:
-        """Reference for destination column, used for specifying messages."""
+    def src(cls) -> Any:
+        """Reference for source column, used for specifying messages.
+        
+        Can be used either as AM.src() or AM.src['colname']
+        """
         jvm_gf_api, _ = _get_java_api()
-        return sqlfunctions.col(jvm_gf_api.DST())
+        def get_col(colName: str = None) -> Column:
+            if colName is None:
+                return sqlfunctions.col(jvm_gf_api.SRC())
+            return sqlfunctions.col(f"src.{colName}")
+        return get_col
 
     @classmethod
-    def edge(cls) -> Column:
-        """Reference for edge column, used for specifying messages."""
+    def dst(cls) -> Any:
+        """Reference for destination column, used for specifying messages.
+        
+        Can be used either as AM.dst() or AM.dst['colname']
+        """
         jvm_gf_api, _ = _get_java_api()
-        return sqlfunctions.col(jvm_gf_api.EDGE())
+        def get_col(colName: str = None) -> Column:
+            if colName is None:
+                return sqlfunctions.col(jvm_gf_api.DST())
+            return sqlfunctions.col(f"dst.{colName}")
+        return get_col
+
+    @classmethod
+    def edge(cls) -> Any:
+        """Reference for edge column, used for specifying messages.
+        
+        Can be used either as AM.edge() or AM.edge['colname']
+        """
+        jvm_gf_api, _ = _get_java_api()
+        def get_col(colName: str = None) -> Column:
+            if colName is None:
+                return sqlfunctions.col(jvm_gf_api.EDGE())
+            return sqlfunctions.col(f"edge.{colName}")
+        return get_col
 
     @classmethod
     def msg(cls) -> Column:
