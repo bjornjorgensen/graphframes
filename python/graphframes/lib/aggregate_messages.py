@@ -16,8 +16,7 @@
 #
 
 from typing import Any, Type, Tuple
-from pyspark.sql import DataFrame, functions as sqlfunctions, SparkSession
-from pyspark.sql.types import Column
+from pyspark.sql import DataFrame, functions as sqlfunctions, SparkSession, Column
 
 def _get_java_api() -> Tuple[Any, SparkSession]:
     """Get Java API and active SparkSession."""

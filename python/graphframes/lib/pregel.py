@@ -16,8 +16,7 @@
 #
 
 from typing import Any, Union
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import Column
+from pyspark.sql import DataFrame, SparkSession, Column
 from pyspark.sql.functions import col
 from pyspark.ml.wrapper import JavaWrapper
 
