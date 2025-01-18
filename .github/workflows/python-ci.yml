@@ -10,10 +10,10 @@ jobs:
             scala-version: 2.12.18
             python-version: "3.9"
           - spark-version: 3.5.4
-            scala-version: 2.12.18
+            scala-version: 2.13.8
             python-version: "3.10"
           - spark-version: 3.5.4
-            scala-version: 2.12.18
+            scala-version: 2.13.8
             python-version: "3.11"
     runs-on: ubuntu-22.04
     env:
