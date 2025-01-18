@@ -19,15 +19,7 @@ import sys
 import tempfile
 import shutil
 import re
-
-if sys.version_info[:2] <= (2, 6):
-    try:
-        import unittest2 as unittest
-    except ImportError:
-        sys.stderr.write('Please install unittest2 to test with Python 2.6 or earlier')
-        sys.exit(1)
-else:
-    import unittest
+import unittest
 
 from pyspark import SparkContext
 from pyspark.sql import functions as sqlfunctions, SparkSession
@@ -100,20 +92,18 @@ def tearDownModule():
 
 
 class GraphFrameTestCase(unittest.TestCase):
-
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         # Small tests run much faster with spark.sql.shuffle.partitions = 4
         cls.spark = SparkSession(GraphFrameTestUtils.sc).builder.config('spark.sql.shuffle.partitions', 4).getOrCreate()
 
     @classmethod
-    def tearDownClass(cls):
+    def teardown_class(cls):
         cls.spark = None
 
 
 class GraphFrameTest(GraphFrameTestCase):
-    def setUp(self):
-        super(GraphFrameTest, self).setUp()
+    def setup_method(self):
         localVertices = [(1, "A"), (2, "B"), (3, "C")]
         localEdges = [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow")]
         v = self.spark.createDataFrame(localVertices, ["id", "name"])
@@ -133,12 +123,12 @@ class GraphFrameTest(GraphFrameTestCase):
     def test_construction(self):
         g = self.g
         vertexIDs = map(lambda x: x[0], g.vertices.select("id").collect())
-        assert sorted(vertexIDs) == [1, 2, 3]
+        self.assertEqual(sorted(vertexIDs), [1, 2, 3])
         edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
-        assert sorted(edgeActions) == ["follow", "hate", "love"]
+        self.assertEqual(sorted(edgeActions), ["follow", "hate", "love"])
         tripletsFirst = list(map(lambda x: (x[0][1], x[1][1], x[2][2]),
                             g.triplets.sort("src.id").select("src", "dst", "edge").take(1)))
-        assert tripletsFirst == [("A", "B", "love")], tripletsFirst
+        self.assertEqual(tripletsFirst, [("A", "B", "love")], tripletsFirst)
         # Try with invalid vertices and edges DataFrames
         v_invalid = self.spark.createDataFrame(
             [(1, "A"), (2, "B"), (3, "C")], ["invalid_colname_1", "invalid_colname_2"])
@@ -155,17 +145,17 @@ class GraphFrameTest(GraphFrameTestCase):
     def test_degrees(self):
         g = self.g
         outDeg = g.outDegrees
-        self.assertSetEqual(set(outDeg.columns), {"id", "outDegree"})
+        self.assertEqual(set(outDeg.columns), {"id", "outDegree"})
         inDeg = g.inDegrees
-        self.assertSetEqual(set(inDeg.columns), {"id", "inDegree"})
+        self.assertEqual(set(inDeg.columns), {"id", "inDegree"})
         deg = g.degrees
-        self.assertSetEqual(set(deg.columns), {"id", "degree"})
+        self.assertEqual(set(deg.columns), {"id", "degree"})
 
     def test_motif_finding(self):
         g = self.g
         motifs = g.find("(a)-[e]->(b)")
-        assert motifs.count() == 3
-        self.assertSetEqual(set(motifs.columns), {"a", "e", "b"})
+        self.assertEqual(motifs.count(), 3)
+        self.assertEqual(set(motifs.columns), {"a", "e", "b"})
 
     def test_filterVertices(self):
         g = self.g
@@ -176,10 +166,10 @@ class GraphFrameTest(GraphFrameTestCase):
             g2 = g.filterVertices(cond)
             v2 = g2.vertices.select("id", "name").collect()
             e2 = g2.edges.select("src", "dst", "action").collect()
-            assert len(v2) == len(expected_v)
-            assert len(e2) == len(expected_e)
-            self.assertSetEqual(set(v2), set(expected_v))
-            self.assertSetEqual(set(e2), set(expected_e))
+            self.assertEqual(len(v2), len(expected_v))
+            self.assertEqual(len(e2), len(expected_e))
+            self.assertEqual(set(v2), set(expected_v))
+            self.assertEqual(set(e2), set(expected_e))
 
     def test_filterEdges(self):
         g = self.g
@@ -190,10 +180,10 @@ class GraphFrameTest(GraphFrameTestCase):
             g2 = g.filterEdges(cond)
             v2 = g2.vertices.select("id", "name").collect()
             e2 = g2.edges.select("src", "dst", "action").collect()
-            assert len(v2) == len(expected_v)
-            assert len(e2) == len(expected_e)
-            self.assertSetEqual(set(v2), set(expected_v))
-            self.assertSetEqual(set(e2), set(expected_e))
+            self.assertEqual(len(v2), len(expected_v))
+            self.assertEqual(len(e2), len(expected_e))
+            self.assertEqual(set(v2), set(expected_v))
+            self.assertEqual(set(e2), set(expected_e))
 
     def test_dropIsolatedVertices(self):
         g = self.g
@@ -202,10 +192,10 @@ class GraphFrameTest(GraphFrameTestCase):
         e2 = g2.edges.select("src", "dst", "action").collect()
         expected_v = [(2, "B"), (3, "C")]
         expected_e = [(2, 3, "follow")]
-        assert len(v2) == len(expected_v)
-        assert len(e2) == len(expected_e)
-        self.assertSetEqual(set(v2), set(expected_v))
-        self.assertSetEqual(set(e2), set(expected_e))
+        self.assertEqual(len(v2), len(expected_v))
+        self.assertEqual(len(e2), len(expected_e))
+        self.assertEqual(set(v2), set(expected_v))
+        self.assertEqual(set(e2), set(expected_e))
 
     def test_bfs(self):
         g = self.g
@@ -219,8 +209,8 @@ class GraphFrameTest(GraphFrameTestCase):
 
 
 class PregelTest(GraphFrameTestCase):
-    def setUp(self):
-        super(PregelTest, self).setUp()
+    def setup_method(self):
+        pass
 
     def test_page_rank(self):
         from pyspark.sql.functions import coalesce, col, lit, sum, when
@@ -250,12 +240,11 @@ class PregelTest(GraphFrameTestCase):
         result = map(lambda x: x.rank, resultRows)
         expected = [0.245, 0.224, 0.303, 0.03, 0.197]
         for a, b in zip(result, expected):
-            self.assertAlmostEqual(a, b, delta = 1e-3)
+            self.assertAlmostEqual(a, b, places=3)
 
 
 class GraphFrameLibTest(GraphFrameTestCase):
-    def setUp(self):
-        super(GraphFrameLibTest, self).setUp()
+    def setup_method(self):
         self.japi = _java_api(self.spark._sc)
 
     def _hasCols(self, graph, vcols = [], ecols = []):
@@ -309,7 +298,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         # Compare if the agg mappings match the brute force mapping
         self.assertEqual(aggMap, trueAgg)
         self.assertEqual(agg2Map, trueAgg)
-        # Check that TypeError is raises with messages of wrong type
+        # Check that TypeError is raised with messages of wrong type
         with self.assertRaises(TypeError):
             g.aggregateMessages(
                 "sum(MSG) AS `summedAges`",
@@ -355,11 +344,11 @@ class GraphFrameLibTest(GraphFrameTestCase):
         labels = g.labelPropagation(maxIter=4 * n)
         labels1 = labels.filter("id < 5").select("label").collect()
         all1 = set([x.label for x in labels1])
-        assert len(all1) == 1
+        self.assertEqual(len(all1), 1)
         labels2 = labels.filter("id >= 5").select("label").collect()
         all2 = set([x.label for x in labels2])
-        assert len(all2) == 1
-        assert all1 != all2
+        self.assertEqual(len(all2), 1)
+        self.assertNotEqual(all1, all2)
 
     def test_page_rank(self):
         n = 100
@@ -434,8 +423,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
 
 
 class GraphFrameExamplesTest(GraphFrameTestCase):
-    def setUp(self):
-        super(GraphFrameExamplesTest, self).setUp()
+    def setup_method(self):
         self.japi = _java_api(self.spark._sc)
 
     def test_belief_propagation(self):
@@ -447,9 +435,7 @@ class GraphFrameExamplesTest(GraphFrameTestCase):
         # check beliefs are valid
         for row in results.vertices.select('belief').collect():
             belief = row['belief']
-            self.assertTrue(
-                0 <= belief <= 1,
-                msg="Expected belief to be probability in [0,1], but found {}".format(belief))
+            self.assertTrue(0 <= belief <= 1, f"Expected belief to be probability in [0,1], but found {belief}")
 
     def test_graph_friends(self):
         # construct graph
@@ -465,4 +451,4 @@ class GraphFrameExamplesTest(GraphFrameTestCase):
         ids = [v['id'] for v in g.vertices.collect()]
         for i in range(n):
             for j in range(n):
-                self.assertIn('{},{}'.format(i, j), ids)
+                self.assertIn(f'{i},{j}', ids)
