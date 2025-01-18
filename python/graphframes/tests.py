@@ -93,17 +93,18 @@ def tearDownModule():
 
 class GraphFrameTestCase(unittest.TestCase):
     @classmethod
-    def setup_class(cls):
+    def setUpClass(cls):
         # Small tests run much faster with spark.sql.shuffle.partitions = 4
         cls.spark = SparkSession(GraphFrameTestUtils.sc).builder.config('spark.sql.shuffle.partitions', 4).getOrCreate()
 
     @classmethod
-    def teardown_class(cls):
+    def tearDownClass(cls):
         cls.spark = None
 
 
 class GraphFrameTest(GraphFrameTestCase):
-    def setup_method(self):
+    def setUp(self):
+        super(GraphFrameTest, self).setUp()
         localVertices = [(1, "A"), (2, "B"), (3, "C")]
         localEdges = [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow")]
         v = self.spark.createDataFrame(localVertices, ["id", "name"])
@@ -209,8 +210,8 @@ class GraphFrameTest(GraphFrameTestCase):
 
 
 class PregelTest(GraphFrameTestCase):
-    def setup_method(self):
-        pass
+    def setUp(self):
+        super(PregelTest, self).setUp()
 
     def test_page_rank(self):
         from pyspark.sql.functions import coalesce, col, lit, sum, when
@@ -244,7 +245,8 @@ class PregelTest(GraphFrameTestCase):
 
 
 class GraphFrameLibTest(GraphFrameTestCase):
-    def setup_method(self):
+    def setUp(self):
+        super(GraphFrameLibTest, self).setUp()
         self.japi = _java_api(self.spark._sc)
 
     def _hasCols(self, graph, vcols = [], ecols = []):
@@ -423,7 +425,8 @@ class GraphFrameLibTest(GraphFrameTestCase):
 
 
 class GraphFrameExamplesTest(GraphFrameTestCase):
-    def setup_method(self):
+    def setUp(self):
+        super(GraphFrameExamplesTest, self).setUp()
         self.japi = _java_api(self.spark._sc)
 
     def test_belief_propagation(self):
