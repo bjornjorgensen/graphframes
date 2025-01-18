@@ -64,6 +64,8 @@ export PYTHONPATH=$DIR:$PYTHONPATH
 $PYSPARK_DRIVER_PYTHON -m unittest discover -v $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
 
 # Exit immediately if the tests fail.
+# Since we pipe to remove the output, we need to use some horrible BASH features:
+# http://stackoverflow.com/questions/1221833/bash-pipe-output-and-capture-exit-status
 test ${PIPESTATUS[0]} -eq 0 || exit 1;
 
 # Run doc tests
