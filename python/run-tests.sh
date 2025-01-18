@@ -56,10 +56,9 @@ done
 
 export PYSPARK_SUBMIT_ARGS="--driver-memory 2g --executor-memory 2g --jars $JAR_PATH pyspark-shell "
 
-export PYTHONPATH=$PYTHONPATH:$SPARK_HOME/python:$LIBS:.
+export PYTHONPATH=$PYTHONPATH:$SPARK_HOME/python:$LIBS
 
-export PYTHONPATH=$PYTHONPATH:graphframes
-
+export PYTHONPATH=$DIR:$PYTHONPATH
 
 # Run test suites
 $PYSPARK_DRIVER_PYTHON -m unittest discover -v $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
